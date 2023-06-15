@@ -23,11 +23,29 @@ class AddressBook(UserDict):
                 if i == aRecord:
                     return (aRecord.user_name.value, aRecord)
         return None
+    
+    def __iter__(self):
+        # Generator function to yield representations of N records
+        def record_generator():
+            N = 5  # Number of records to yield in each iteration
+            count = 0
+            for record in self.data.values():
+                yield repr(record)
+                count += 1
+                if count >= N:
+                    break
+
+        return record_generator()
 
 
 class Field():
     # Base class representing a field
-    def __init__(self, value):
+    def __eq__(self, other):
+        if isinstance(other, Field):
+            return self.value == other.value
+        return False
+
+    def __init__(self, value = ''):
         # Constructor to initialize the field with a value
         self._value = value
 
@@ -50,6 +68,7 @@ class Name(Field):
 
 class Phone(Field):
     # Class representing a phone field, which is a subclass of Field
+
     @property
     def value(self):
         # Getter method for the value property
@@ -58,6 +77,13 @@ class Phone(Field):
     @value.setter
     def value(self, new_value):
         # Setter method for the value property
+        if not isinstance(new_value, str):
+            try:
+                new_value = str(new_value)
+            except TypeError:
+                raise SetterValueIncorrect(
+                    'Only correct type of phone numbers accepted')
+            
         if re.search(r"[+]380[(]\d{2}[)]\d{3}[-]\d{1,2}[-]\d{2,3}(?=.{1,17})", new_value):
             self._value = new_value
         else:
@@ -70,12 +96,12 @@ class Birthday(Field):
     @property
     def value(self):
         # Getter method for the value property
-        return self.__value
+        return self._value
 
     @value.setter
     def value(self, new_value):
         # Setter method for the value property
-        if new_value is datetime:
+        if isinstance(new_value, datetime):
             self._value = new_value
         elif isinstance(new_value, str):
             try:
@@ -105,6 +131,9 @@ class Record():
         if isinstance(other, Record):
             return self.user_name.value == other.user_name.value
         return False
+    
+    # def __str__(self):
+    #     return '|{:^8}|{:^10}|{:^15}|'.format(self.user_name,self.user_birthday,self.user_phones)
 
     def add_phone(self, aPhone):
         # Method to add a phone to the record
@@ -115,7 +144,13 @@ class Record():
 
     def remove_phone(self, aPhone):
         # Method to remove a phone from the record
-        self.user_phones.remove(aPhone)
+        try:
+            if isinstance(aPhone, Phone):
+                self.user_phones.remove(aPhone)
+            elif isinstance(aPhone, str):
+                self.user_phones.remove(Phone(aPhone))
+        except ValueError:
+            print('Not find such phone')
 
     def remove_n_phone(self, aPhoneIndex):
         # Method to remove the phone at a specified index from the record
